@@ -1,0 +1,121 @@
+<html>
+<title> Channel Points 100 Followers Lookup </title>
+<body>
+
+
+<button onclick="getFollowers()">Get 100 Followed Channels</button>
+
+<ul id="list">
+
+</ul> 
+
+</body>
+<script>
+
+// Save this file as channel-points-lookup.html on your computer, and open in your browser. (Tested with Chrome)
+// Open Inspect Tools, (Ctrl + Shift + J) in Chrome and locate the Console tab. Paste the code below.
+// alert( document.cookie.match( /(; )?auth-token=([^;]*);?/ )[ 2 ] )
+// Copy the value and when loading this page, paste it in the prompt.
+
+var oauthToken;
+if ( sessionStorage.getItem('oauthToken') ) {
+	oauthToken = sessionStorage.getItem('oauthToken')
+} else {
+	oauthToken = prompt("Please enter your Twitch Oauth Token", "");
+};
+
+function getFollowers() {
+
+	let headers = new Headers();
+	headers.append("client-id", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+	headers.append("authorization", `OAuth ${oauthToken}`);
+	headers.append("Content-Type", "application/json");
+
+	var body = JSON.stringify({
+	  "operationName": "ChannelFollows",
+	  "variables": {
+	    "limit": 100,
+	    "order": "DESC"
+	  },
+	  "extensions": {
+	    "persistedQuery": {
+	      "version": 1,
+	      "sha256Hash": "fd9d5312a69d3c50cd2a8d6a1caadc824df410c249b78d330d7f469d22151933"
+	    }
+	  }
+	});
+
+	var fetchOptions = {
+	  method: 'POST',
+	  headers,
+	  body
+	};
+
+	fetch("https://gql.twitch.tv/gql", fetchOptions)
+	  .then(response => response.json())
+	  .then(result => {
+	  	const data = result['data'];
+	  	console.log(data['user']['follows']);
+	  	data['user']['follows']['edges'].forEach(function(user, index) {
+	  		const channel = user['node']['login'];
+			setTimeout(function(){ getChannelPoints(channel) }, 1000 * index);
+		});
+	  })
+	  .catch(error => {
+	  	alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+	  });
+
+
+
+}
+
+function getChannelPoints(channel) {
+	let headers = new Headers();
+	headers.append("client-id", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+	headers.append("authorization", `OAuth ${oauthToken}`);
+	headers.append("Content-Type", "application/json");
+
+	var body = JSON.stringify({
+	  "operationName": "ChannelPointsContext",
+	  "variables": {
+	    "channelLogin": channel,
+	    "includeGoalTypes": [
+	      "CREATOR",
+	      "BOOST"
+	    ]
+	  },
+	  "extensions": {
+	    "persistedQuery": {
+	      "version": 1,
+	      "sha256Hash": "1530a003a7d374b0380b79db0be0534f30ff46e61cffa2bc0e2468a909fbc024"
+	    }
+	  }
+	});
+
+	var fetchOptions = {
+	  method: 'POST',
+	  headers,
+	  body
+	};
+
+	fetch("https://gql.twitch.tv/gql", fetchOptions)
+	  .then(response => response.json())
+	  .then(result => {
+	  	const data = result['data'];
+	  	const channelName = data['community']['displayName'];
+	  	const points = data['community']['channel']['self']['communityPoints']['balance'];
+	  	
+		const ul = document.getElementById("list");
+		const li = document.createElement("li");
+		li.appendChild(document.createTextNode(`Channel: ${channelName} - Points: ${points}`));
+		ul.appendChild(li);
+
+	  })
+	  .catch(error => {
+	  	alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+	  });
+};
+
+ </script>
+
+</html>
