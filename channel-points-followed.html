@@ -5,9 +5,8 @@
 
 <button onclick="getFollowers()">Get 100 Followed Channels</button>
 
-<ul id="list">
-
-</ul> 
+<table id="table">
+</table>
 
 </body>
 <script>
@@ -104,10 +103,12 @@ function getChannelPoints(channel) {
 	  	const channelName = data['community']['displayName'];
 	  	const points = data['community']['channel']['self']['communityPoints']['balance'];
 	  	
-		const ul = document.getElementById("list");
-		const li = document.createElement("li");
-		li.appendChild(document.createTextNode(`Channel: ${channelName} - Points: ${points}`));
-		ul.appendChild(li);
+		var table = document.getElementById("table");
+		var row = table.insertRow(0);
+		var channelColumn = row.insertCell(0);
+		var pointColumn = row.insertCell(1);
+		channelColumn.innerHTML = `<strong>${channelName}</strong>`;
+		pointColumn.innerHTML = points;
 
 	  })
 	  .catch(error => {
