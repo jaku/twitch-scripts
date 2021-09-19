@@ -12,7 +12,7 @@
 </body>
 <script>
 
-// Save this file as channel-points-lookup.html on your computer, and open in your browser. (Tested with Chrome)
+// Save this file as channel-points-followed.html on your computer, and open in your browser. (Tested with Chrome)
 // Open Inspect Tools, (Ctrl + Shift + J) in Chrome and locate the Console tab. Paste the code below.
 // alert( document.cookie.match( /(; )?auth-token=([^;]*);?/ )[ 2 ] )
 // Copy the value and when loading this page, paste it in the prompt.
@@ -55,7 +55,6 @@ function getFollowers() {
 	  .then(response => response.json())
 	  .then(result => {
 	  	const data = result['data'];
-	  	console.log(data['user']['follows']);
 	  	data['user']['follows']['edges'].forEach(function(user, index) {
 	  		const channel = user['node']['login'];
 			setTimeout(function(){ getChannelPoints(channel) }, 1000 * index);
