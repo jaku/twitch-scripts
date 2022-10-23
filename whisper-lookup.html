@@ -1,0 +1,219 @@
+<html>
+<title> Whisper Lookup </title>
+<body>
+
+
+<input id="channelname" type="text" value="jaku" placeholder="Enter Whisper Name">
+<button onclick="getMyName()">Lookup Whispers</button>
+<button onclick="lookupMoreWhispers()">Next</button>
+
+<ul id="list">
+
+</ul> 
+
+</body>
+<script>
+
+// Save this file as whisper-lookup.html on your computer, and open in your browser. (Tested with Chrome)
+// When on Twitch.tv, open Inspect Tools, (Ctrl + Shift + J) in Chrome and locate the Console tab. Paste the code below.
+// alert( document.cookie.match( /(; )?auth-token=([^;]*);?/ )[ 2 ] )
+// Copy the value and when loading this page, paste it in the prompt.
+let oauthToken = '';
+let myTwitchID;
+let myName;
+
+if ( sessionStorage.getItem('oauthToken') ) {
+  oauthToken = sessionStorage.getItem('oauthToken')
+} else {
+  oauthToken = prompt("Please enter your Twitch Oauth Token", "");
+};
+
+let whisperTwitchID;
+let whisperName;
+let pageCursor;
+let lastCursor;
+
+
+function getMyName() {
+
+if ( myName && myTwitchID ) return lookupName();
+
+
+let headers = new Headers();
+  headers.append("client-id", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+  headers.append("authorization", `OAuth ${oauthToken}`);
+  headers.append("Content-Type", "application/json");
+
+  var body = JSON.stringify({
+    "operationName": "Settings_ProfilePage_AccountInfoSettings",
+    "variables": {},
+    "extensions": {
+        "persistedQuery": {
+            "version": 1,
+            "sha256Hash": "60a54ebcbd29e095db489ed6268f33d5fe5ed1d4fa3176668d8091587ae81779"
+        }
+    }
+  });
+
+  const fetchOptions = {
+    method: 'POST',
+    headers,
+    body
+  };
+
+
+fetch(`https://gql.twitch.tv/gql`, fetchOptions)
+    .then(response => response.json())
+    .then(result => {
+
+      if ( result && result.data && result.data.currentUser ) {
+        myName = result.data.currentUser.displayName;
+        myTwitchID = result.data.currentUser.id;
+        sessionStorage.setItem('oauthToken', oauthToken)
+        lookupName();
+      } else {
+        alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+      }
+
+    })
+    .catch(error => {
+      alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+    });
+
+
+
+}
+
+function lookupMoreWhispers() {
+  if (!pageCursor) return alert("Do Lookup First");
+  if ( lastCursor == pageCursor ) return alert("All whispers have been printed.")
+  lastCursor = pageCursor;
+  getWhispers(pageCursor);
+}
+
+function lookupName() {
+
+  const name = document.getElementById('channelname').value || false;
+
+  if (!name) return alet("Type a name of a user to lookup first.");
+
+  let headers = new Headers();
+  headers.append("client-id", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+  headers.append("authorization", `OAuth ${oauthToken}`);
+  headers.append("Content-Type", "application/json");
+
+  var body = JSON.stringify([
+   {
+      "operationName":"WhispersSearchUsersQuery",
+      "variables":{
+         "userQuery": name
+      },
+      "extensions":{
+         "persistedQuery":{
+            "version":1,
+            "sha256Hash":"10ed65593d5e195734064016fe96b895dab192b9bd612e31530c9baeacc60836"
+         }
+      }
+   }
+  ]);
+
+  const fetchOptions = {
+    method: 'POST',
+    headers,
+    body
+  };
+
+
+fetch(`https://gql.twitch.tv/gql`, fetchOptions)
+    .then(response => response.json())
+    .then(result => {
+
+      const twitchID = result[0].data.searchUsers.edges[0].node.id || false;
+      if ( twitchID ) {
+        whisperName = name;
+        whisperTwitchID = twitchID;
+        getWhispers(0);
+      } else {
+        alert("Twitch Username not found. Try again.")
+      }
+
+    })
+    .catch(error => {
+      alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+    });
+
+
+
+
+
+}
+
+
+function getWhispers(cursor) {
+  let headers = new Headers();
+  headers.append("client-id", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+  headers.append("authorization", `OAuth ${oauthToken}`);
+  headers.append("Content-Type", "application/json");
+
+  const jsonPayload = [
+    {
+        "operationName": "Whispers_Thread_WhisperThread",
+        "variables": {
+            "id":`${myTwitchID}_${whisperTwitchID}`,
+        },
+        "extensions": {
+            "persistedQuery": {
+                "version": 1,
+                "sha256Hash": "c11d356f7e2d8a2b7da3f90c11487414b7fb188649bafe331e93937a5da2310d"
+            }
+        }
+    }
+  ];
+
+  if (cursor) {
+    jsonPayload[0].variables.cursor = `${cursor}`
+  }
+
+  let body = JSON.stringify(jsonPayload);
+
+  const fetchOptions = {
+    method: 'POST',
+    headers,
+    body
+  };
+
+  fetch("https://gql.twitch.tv/gql", fetchOptions)
+    .then(response => response.json())
+    .then(result => {
+
+      const messages = result[0].data.whisperThread.messages.edges || false;
+
+      if (!messages) return alert("Either something went wrong, or you have no messages with this user.");
+
+      messages.forEach(function(msg, index) {
+        const fromId = msg.node.from.id;
+        const {content, sentAt} = msg.node;
+        const cursor = msg.cursor;
+
+        pageCursor = cursor;
+        const ul = document.getElementById("list");
+        const li = document.createElement("li");
+        
+        let from = whisperName;
+        if ( fromId == myTwitchID ) {
+          from = myName
+        }
+
+        li.appendChild(document.createTextNode(`${from}: (${sentAt}) ${content.content}`));
+        ul.appendChild(li);
+
+      })
+    })
+    .catch(error => {
+      alert("Something went wrong. Either invalid oauth token, or invalid channel. Refresh and try again.")
+    });
+
+
+};
+
+</script>
